@@ -1,0 +1,364 @@
+% http://www.uml-diagrams.org/class-reference.html
+
+\RequirePackage{expl3, xparse, etoolbox, tikz, helvet}
+% \RequirePackage{expl3, xparse, etoolbox, tikz}
+\usetikzlibrary{arrows, shapes, fit, backgrounds, turtle, shadings, positioning}
+
+\definecolor{blueish}{RGB}{150, 210, 255}
+% \definecolor{yellowish}{RGB}{248, 236, 153}
+% \definecolor{yellowish}{RGB}{248, 236, 153}F
+\definecolor{yellowish}{RGB}{241, 221, 120}
+\definecolor{cd relation fill}{RGB}{255, 255, 255}
+
+
+% \newcommand{\colorRelationFill}{white}
+
+% The default set of modal commands offers
+% weights \mdseries and \bfseries,
+% shapes \upshape, \itshape, \scshape and \slshape,
+% and families \rmfamily, \sffamily and \ttfamily.
+\newcommand{\styleClass}{\sffamily \bfseries}
+\newcommand{\styleAttribute}{\sffamily \small}
+\newcommand{\styleOperation}{\sffamily \small}
+\newcommand{\stylePackage}{\sffamily \bfseries}
+\newcommand{\styleAbstractClass}{\itshape}
+% \newcommand{\styleAbstractClass}{}
+\newcommand{\styleAbstractAttribute}{\itshape}
+\newcommand{\styleAbstractOperation}{\itshape}
+
+\newcommand{\textAbstractClass}{}
+% \newcommand{\textAbstractClass}{{\sffamily <<abstract>>} \\}
+\newcommand{\textInterface}{{\sffamily <<interface>>} \\}
+
+\tikzstyle{cd common}=
+[
+  thick,
+  rounded corners,
+  rectangle split,
+  rectangle split parts=3,
+  rectangle split every empty part={} %Needed for line below to work for smaller numbers http://tex.stackexchange.com/questions/29753/cant-get-split-rectangle-to-shrink-small-enough-in-this-tikz-picture
+  rectangle split empty part height=0.01ex,
+  rectangle split ignore empty parts=false,
+  % align=left,
+  rectangle split part align={center, left, left},
+  every one node part/.style={align=center}, % Required for \\ to work in parts http://tex.stackexchange.com/questions/31109/why-linebreak-doesnt-work-when-text-width-is-not-set
+  every two node part/.style={align=left},
+  every three node part/.style={align=left},
+  draw=black,
+  % fill=blueish,
+  bottom color=blueish,
+  top color=blueish!50,
+  text=black,
+]
+
+\tikzstyle{cd relation}                   =[draw=black, thick]
+\tikzstyle{cd relation text}              =[text=black, sloped, font=\sffamily]
+\tikzstyle{cd relation role start}        =[cd relation text, near start, above]
+\tikzstyle{cd relation role end}          =[cd relation text, near end, below]
+\tikzstyle{cd relation multiplicity start}=[cd relation text, near start, below]
+\tikzstyle{cd relation multiplicity end}  =[cd relation text, near end, above]
+
+\tikzstyle{cd nested}        =[cd relation, ox-]
+\tikzstyle{cd association}   =[cd relation, -]
+\tikzstyle{cd unidirectional}=[cd relation, -a>]
+\tikzstyle{cd generalization}=[cd relation, -i>]
+\tikzstyle{cd realization}   =[cd relation, dashed, -i>]
+\tikzstyle{cd aggregation}   =[cd relation, <>-a>]
+\tikzstyle{cd composition}   =[cd relation, <*>-a>]
+\tikzstyle{cd package}       =[thick, rounded corners, draw=black, text=black]
+\tikzstyle{cd package box}   =[cd package, inner sep=0.5cm, anchor=north west, top color=yellowish!50, bottom color=yellowish]
+\tikzstyle{cd package label} =[cd package, outer ysep=-0.5, anchor=south west, fill=yellowish!50]
+
+\tikzstyle{unidirectional}=[-a>]
+
+% \tikzstyle{abstract}=
+% [
+%   font=\itshape
+% ]
+
+% Visibility settings
+\pgfkeys{/cd/public/.code=\texttt{+}}
+\pgfkeys{/cd/protected/.code=\texttt{\#}}
+\pgfkeys{/cd/private/.code=\texttt{-}}
+\pgfkeys{/cd/package/.code=\texttt{\char`\~}}
+\pgfkeys{/cd/.style=/cd/.cd}
+
+% Makes for easier coding as whitespace is ignored
+% Potential source of problem in stuff like TikZ \foreach
+% Use ~ for explicit whitespace
+\ExplSyntaxOn
+
+\NewDocumentEnvironment{class}{O{}m}
+{
+  \begin{common}[#1]{#2}
+}
+{
+  \end{common}
+}
+
+\NewDocumentEnvironment{interface}{O{}m}
+{
+  \begin{common}[#1][\textInterface]{#2}
+}
+{
+  \end{common}
+}
+
+% General box
+% Opts, Type, Name
+\NewDocumentEnvironment{common}{O{}O{}m}
+{
+  \def\mOpts{#1}      % TikZ Node Options
+  \def\mType{#2}      % UML Stereotype (before name)
+  \def\mName{#3}      % TikZ Node Name
+  
+  \def\mPos{0, 0}     % TikZ Node Position
+  \def\mLabel{#3}     % UML Name (i.e. TikZ Node Label)
+  \def\mLabelStyle{\styleClass}
+  \def\mAttributes{}  % UML Attribute List
+  \def\mOperations{}  % UML Operation List
+  
+  %redefine \abstract inside common environment
+  \DeclareDocumentCommand \abstract {}
+  {
+    \def\mType{\textAbstractClass}
+    \def\mLabelStyle{\styleAbstractClass}
+  }
+  
+  \NewDocumentCommand \name {m}
+  {
+    \def\mLabel{##1}
+  }
+  
+  \NewDocumentCommand \position {O{}m}
+  {
+    \appto\mOpts{, ##1}
+    \def\mPos{##2}
+  }
+  
+  \NewDocumentCommand \attribute {sO{}m}
+  {
+    \IfBooleanTF {##1}
+    {
+      \listadd{\mAttributes}{{\styleAbstractAttribute \pgfkeys{cd, ##2} ##3}}
+    }
+    {
+      \listadd{\mAttributes}{{\styleAttribute \pgfkeys{cd, ##2} ##3}}
+    }
+  }
+  
+  \NewDocumentCommand \operation {sO{}m}
+  {
+    \IfBooleanTF {##1}
+    {
+      \listadd{\mOperations}{{\styleAbstractOperation \pgfkeys{cd, ##2} ##3}}
+    }
+    {
+      \listadd{\mOperations}{{\styleOperation \pgfkeys{cd, ##2} ##3}}
+    }
+  }
+  
+}
+{
+  % Macros to iterate over an internal list and print each element on its own line
+  \providebool{newline}
+  \def\printelem##1{\ifbool{newline}{\\##1\booltrue{newline}}{##1\booltrue{newline}}}
+  \def\printlist##1{\forlistloop\printelem{##1}}
+  
+  \node [cd~common, style/.expand~once=\mOpts] (\mName) at (\mPos)
+  {
+    \nodepart{one}\mType{\styleClass\mLabelStyle\mLabel}
+    \nodepart{two}\printlist{\mAttributes}
+    \nodepart{three}\printlist{\mOperations}
+  };
+}
+
+\NewDocumentCommand \relation {O{}mO{}O{}mO{}O{}d<>}
+{
+  \IfValueTF{#8}
+  {
+    % Quirk: The first point needs to be drawn twice
+    % http://tex.stackexchange.com/questions/123997/tikz-combining-multiple-paths-in-and-outside-foreach
+    \coordinate (c0) at (#2);
+    \path (c0)
+      \foreach \position [count=\count] in {#8}
+      {
+        \position coordinate (c\count)
+      };
+%     \path [cd~relation, #1] (#2) -- (c1)
+    \path [cd~relation, #1] (#2) to
+      node [cd~relation~role~start] {#6}
+      node [cd~relation~multiplicity~start] {#7}
+      (c1)
+      \foreach \position [count=\count] in {#8}
+      {
+        to (c\count)
+      }
+      to
+      node [cd~relation~role~end] {#3}
+      node [cd~relation~multiplicity~end] {#4}
+      (#5);
+  }
+  {
+%     \path [cd~relation, #1] (#2) -- (#5)
+    \path [cd~relation, #1] (#2) to
+      node [cd~relation~role~end] {#3}
+      node [cd~relation~multiplicity~end] {#4}
+      node [cd~relation~role~start] {#6}
+      node [cd~relation~multiplicity~start] {#7}
+      (#5);
+  }
+}
+
+\NewDocumentCommand \nested {O{}mO{}O{}mO{}O{}d<>}
+{
+  \relation[cd~nested, #1]{#2}[#3][#4]{#5}[#6][#7]<#8>
+}
+
+\NewDocumentCommand \association {O{}mO{}O{}mO{}O{}d<>}
+{
+  \relation[cd~association, #1]{#2}[#3][#4]{#5}[#6][#7]<#8>
+}
+
+\NewDocumentCommand \generalization {O{}mO{}O{}mO{}O{}d<>}
+{
+  \relation[cd~generalization, #1]{#2}[#3][#4]{#5}[#6][#7]<#8>
+}
+
+\NewDocumentCommand \realization {O{}mO{}O{}mO{}O{}d<>}
+{
+  \relation[cd~realization, #1]{#2}[#3][#4]{#5}[#6][#7]<#8>
+}
+
+\NewDocumentCommand \aggregation {O{}mO{}O{}mO{}O{}d<>}
+{
+  \relation[cd~aggregation, #1]{#2}[#3][#4]{#5}[#6][#7]<#8>
+}
+
+\NewDocumentCommand \composition {O{}mO{}O{}mO{}O{}d<>}
+{
+  \relation[cd~composition, #1]{#2}[#3][#4]{#5}[#6][#7]<#8>
+}
+
+\NewDocumentCommand \package {O{}mm}
+{
+  \begin{pgfonlayer}{background}
+  \node[cd~package~box, fit=#3, #1] (package #2) {};
+  \node[cd~package~label, #1] (package #2 label) at (package #2.north~west) {\stylePackage #2};
+  \end{pgfonlayer}
+}
+
+\ExplSyntaxOff
+
+% Association: V-shaped arrow head
+\pgfarrowsdeclare{<a}{a>}
+{
+  \arrowsize=0.3cm
+  \advance\arrowsize by 0.5\pgflinewidth
+  \pgfarrowsleftextend{-\arrowsize - 0.5\pgflinewidth}
+  \pgfarrowsrightextend{0.5\pgflinewidth}
+}
+{
+  \arrowsize=0.3cm
+  \advance\arrowsize by 0.5\pgflinewidth
+  \pgfsetdash{}{0pt} % do not dash
+  \pgfsetroundjoin   % path joins rounded
+  \pgfsetroundcap    % path ends rounded
+  \pgfpathmoveto{\pgfpoint{-\arrowsize}{0.3\arrowsize}}
+  \pgfpathlineto{\pgfpoint{0pt}{0pt}}
+  \pgfpathlineto{\pgfpoint{-\arrowsize}{-0.3\arrowsize}}
+  \pgfusepathqstroke
+}
+
+% Inheritance/Implementation: Hollow triangular arrow head
+\pgfarrowsdeclare{<i}{i>}
+{
+  \arrowsize=0.3cm
+  \advance\arrowsize by 0.5\pgflinewidth
+  \pgfarrowsleftextend{-0.5\pgflinewidth}
+  \pgfarrowsrightextend{\arrowsize + 0.5\pgflinewidth}
+}
+{
+  \arrowsize=0.3cm
+  \advance\arrowsize by 0.5\pgflinewidth
+  \pgfsetdash{}{0pt} % do not dash
+  \pgfsetroundjoin   % path joins rounded
+  \pgfsetroundcap    % path ends rounded
+  \pgfpathmoveto{\pgfpoint{0}{0.5\arrowsize}}
+  \pgfpathlineto{\pgfpoint{\arrowsize}{0pt}}
+  \pgfpathlineto{\pgfpoint{0}{-0.5\arrowsize}}
+  \pgfpathlineto{\pgfpoint{0}{0.5\arrowsize}}
+%   \pgfusepathqstroke
+  \pgfsetfillcolor{cd relation fill}
+  \pgfusepathqfillstroke
+}
+
+% Nested: Crossed cricle arrow head
+\pgfarrowsdeclare{ox}{ox}
+{
+  \arrowsize=0.3cm
+  \advance\arrowsize by 0.5\pgflinewidth
+  \pgfarrowsleftextend{-0.5\pgflinewidth}
+  \pgfarrowsrightextend{\arrowsize + 0.5\pgflinewidth}
+}
+{
+  \arrowsize=0.3cm
+  \advance\arrowsize by 0.5\pgflinewidth
+  \pgfsetdash{}{0pt} % do not dash
+  \pgfsetroundjoin   % path joins rounded
+  \pgfsetroundcap    % path ends rounded
+  \pgfpathcircle{\pgfpoint{0.5\arrowsize}{0}}{0.5\arrowsize}
+  \pgfpathmoveto{\pgfpoint{0}{0}}
+  \pgfpathlineto{\pgfpoint{\arrowsize}{0}}
+  \pgfpathmoveto{\pgfpoint{0.5\arrowsize}{0.5\arrowsize}}
+  \pgfpathlineto{\pgfpoint{0.5\arrowsize}{-0.5\arrowsize}}
+%   \pgfusepathqstroke
+  \pgfsetfillcolor{cd relation fill}
+  \pgfusepathqfillstroke
+}
+
+% Aggregation: Hollow diamond arrow head
+\pgfarrowsdeclare{<>}{<>}
+{
+  \arrowsize=0.3cm
+  \advance\arrowsize by 0.5\pgflinewidth
+  \pgfarrowsleftextend{-0.5\pgflinewidth}
+  \pgfarrowsrightextend{1.4\arrowsize + 0.5\pgflinewidth}
+}
+{
+  \arrowsize=0.3cm
+  \advance\arrowsize by 0.5\pgflinewidth
+  \pgfsetdash{}{0pt} % do not dash
+  \pgfsetroundjoin   % path joins rounded
+  \pgfsetroundcap    % path ends rounded
+  \pgfpathmoveto{\pgfpoint{0.7\arrowsize}{0.4\arrowsize}}
+  \pgfpathlineto{\pgfpoint{1.4\arrowsize}{0pt}}
+  \pgfpathlineto{\pgfpoint{0.7\arrowsize}{-0.4\arrowsize}}
+  \pgfpathlineto{\pgfpoint{0}{0}}
+  \pgfpathlineto{\pgfpoint{0.7\arrowsize}{0.4\arrowsize}}
+  \pgfsetfillcolor{cd relation fill}
+  \pgfusepathqfillstroke
+%   \pgfusepathqstroke
+}
+
+% Composition: Filled diamond arrow head
+\pgfarrowsdeclare{<*>}{<*>}
+{
+  \arrowsize=0.3cm
+  \advance\arrowsize by 0.5\pgflinewidth
+  \pgfarrowsleftextend{-0.5\pgflinewidth}
+  \pgfarrowsrightextend{1.4\arrowsize + 0.5\pgflinewidth}
+}
+{
+  \arrowsize=0.3cm
+  \advance\arrowsize by 0.5\pgflinewidth
+  \pgfsetdash{}{0pt} % do not dash
+  \pgfsetroundjoin   % path joins rounded
+  \pgfsetroundcap    % path ends rounded
+  \pgfpathmoveto{\pgfpoint{0.7\arrowsize}{0.4\arrowsize}}
+  \pgfpathlineto{\pgfpoint{1.4\arrowsize}{0pt}}
+  \pgfpathlineto{\pgfpoint{0.7\arrowsize}{-0.4\arrowsize}}
+  \pgfpathlineto{\pgfpoint{0}{0}}
+  \pgfpathlineto{\pgfpoint{0.7\arrowsize}{0.4\arrowsize}}
+  \pgfusepathqfillstroke
+}

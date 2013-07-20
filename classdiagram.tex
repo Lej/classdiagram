@@ -1,0 +1,621 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2cm]{geometry}
+% \usepackage[parfill]{parskip}
+\usepackage{expl3}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{lmodern}
+\usepackage{courier}
+\usepackage{soul}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{filecontents}
+\usepackage{classdiagram}
+
+\definecolor{kwd}{RGB}{138, 74, 11}
+\definecolor{com}{RGB}{134, 134, 134}
+\definecolor{pun}{RGB}{20, 86, 128}
+\definecolor{typ}{RGB}{43, 145, 175}
+
+\lstset {
+  language=         {[LaTex]TeX},
+  basicstyle=       \footnotesize\ttfamily,
+%   basicstyle=       \ttfamily,
+  frame=            single,
+  tabsize=          2,
+  commentstyle=     \color{com},
+  texcsstyle=        *\color{kwd},
+  keywordstyle=      \color{kwd},
+  captionpos=        b,
+  breaklines=       true,
+  abovecaptionskip= 4ex,
+  morekeywords=     {},
+  moretexcs=        {usetikzlibrary, path, node, relation, attribute, operation, position, abstract},
+  literate=
+    {\{}{{\textcolor{pun}{\{}}}1
+    {\}}{{\textcolor{pun}{\}}}}1
+    {[}{{\textcolor{pun}{[}}}1
+    {]}{{\textcolor{pun}{]}}}1
+    {(}{{\textcolor{pun}{(}}}1
+    {)}{{\textcolor{pun}{)}}}1
+    {=}{{\textcolor{pun}{=}}}1
+    {\$}{{\textcolor{typ}{\$}}}1
+    {*}{{\textcolor{kwd}{*}}}1
+}
+
+\ExplSyntaxOn
+
+\NewDocumentCommand \code {m}
+{
+  {\ttfamily #1}
+}
+
+\NewDocumentCommand \cmd {mo}
+{
+  \IfValueTF{#2}
+  {
+    {\ttfamily\textcolor{kwd}{\char`\\#1}\textcolor{pun}{[}#2\textcolor{pun}{]}}
+  }
+  {
+    {\ttfamily\textcolor{kwd}{\char`\\#1}}
+  }
+}
+
+\NewDocumentCommand \macro {m}
+{
+  {\ttfamily\textcolor{kwd}{\char`\\#1}}
+}
+
+\NewDocumentCommand \oarg {m}
+{
+  {\ttfamily\textcolor{pun}{[}#1\textcolor{pun}{]}}
+}
+
+\NewDocumentCommand \marg {m}
+{
+  {\ttfamily\textcolor{pun}{\{}#1\textcolor{pun}{\}}}
+}
+
+\NewDocumentCommand \targ {m}
+{
+  {\ttfamily\textcolor{pun}{<}#1\textcolor{pun}{>}}
+}
+
+\NewDocumentCommand \default {m}
+{
+  \mbox{$\langle$#1$\rangle$}
+}
+
+\NewDocumentCommand \listing {m}
+{
+  \minipage{\linewidth}
+  \lstinputlisting{#1}
+  \endminipage
+}
+
+\ExplSyntaxOff
+
+\title{The {\bfseries \ttfamily classdiagram} package}
+\author{Linus Sunde}
+
+\begin{document}
+\maketitle
+
+\abstract
+
+The {\ttfamily classdiagram} package allows for creation of UML Class Diagrams. It uses PGF/TikZ to produces the vector graphics. The creation of the package was inspired by the {\ttfamily pgf-umlcd} package, which provides similar functionality. Many thanks to all the patient people at \url{http://tex.stackexchange.com/} who took their time to answer my beginner questions. This package is a work in progress and might never be finished.
+
+\tableofcontents
+
+\section{User Commands}
+
+\subsection{\code{class} and \code{interface}}
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}
+
+  \begin{class}{Class}  % Doesn't allow special characters
+    \position{0, 0}
+    \attribute[public]{publicAttribute : type}
+    \attribute[protected]{packageAttribute : type}
+    \attribute[package]{protectedAttribute : type}
+    \attribute[private]{privateAttribute : type}
+    \operation[public]{publicOperation() : type}
+    \operation[protected]{packageOperation() : type}
+    \operation[package]{protectedOperation() : type}
+    \operation[private]{privateOperation() : type}
+  \end{class}
+  
+  \begin{interface}{Interface}
+    \position[right=0.5cm, anchor=north west]{Class.north east}
+    \attribute{attribute : type}
+    \operation{operation() : type}
+  \end{interface}
+  
+  \begin{class}{AbstractClass}
+    \position[right=0.5cm, anchor=south west]{Class.south east}
+    \abstract
+    \attribute*{abstractAttribute : type}
+    \operation*{abstractOperation() : type}
+  \end{class}
+  
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\subsection{\cmd{generalization} (Class Inheritance)}
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}
+
+  \begin{class}{Person}
+    \attribute[private]{name : String}
+    \operation[public]{setName(String) : void}
+    \operation[public]{getName() : String}
+  \end{class}
+  
+  \begin{class}{Programmer}
+    \position[right=2cm]{Person.east}
+    \attribute[private]{linesWritten : type}
+    \operation[public]{program() : Code}
+    \operation[public]{getLinesWritten() : int}
+  \end{class}
+  
+  \generalization{Programmer}{Person}
+  
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\subsection{\cmd{realization} (Interface Implementation)}
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}
+
+  \begin{interface}{Edible}
+    \operation[public]{eat() : void}
+  \end{interface}
+  
+  \begin{class}{Pizza}
+    \position[right=2cm]{Edible.east}
+    \attribute[private]{toppings : Set<Edible>}
+    \operation[public]{addTopping(Edible) : void}
+  \end{class}
+  
+  \realization{Pizza}{Edible}
+  
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\subsection{\cmd{association}}
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}
+
+  \begin{class}{Programmer}
+    \attribute[private]{linesWritten : type}
+    \operation[public]{program() : Program}
+    \operation[public]{getLinesWritten() : int}
+  \end{class}
+  
+  \begin{class}{Pizza}
+    \position[right=3cm]{Programmer.east}
+    \attribute[private]{toppings : Set<Edible>}
+    \operation[public]{addTopping(Edible) : void}
+  \end{class}
+  
+  \association{Programmer}[owns][0..*]{Pizza}[owner][1]
+  
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\subsection{\cmd{association}[unidirectional]}
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}
+
+  \begin{class}{PizzaBox}
+    \attribute[private]{position : Position}
+    \attribute[private]{size : Size}
+    \operation[public]{open() : Pizza}
+  \end{class}
+
+  \begin{class}{Pizza}
+    \position[right=3cm]{PizzaBox.east}
+    \attribute[private]{toppings : Set<Edible>}
+    \operation[public]{addTopping(Edible) : void}
+  \end{class}
+  
+  \association[unidirectional]{PizzaBox}[contents][1]{Pizza}
+  
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\subsection{\cmd{aggregation}}
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}
+
+  \begin{class}{Company}
+    \attribute[private]{name : String}
+    \operation[public]{hire(Programmer) : void}
+    \operation[public]{fire(Programmer) : void}
+  \end{class}
+
+  \begin{class}{Programmer}
+    \position[right=4cm]{Company.east}
+    \attribute[private]{linesWritten : type}
+    \operation[public]{program() : Program}
+    \operation[public]{getLinesWritten() : int}
+  \end{class}
+  
+  \aggregation{Company}[employees][0..*]{Programmer}
+  
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\subsection{\cmd{composition}}
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}
+
+  \begin{class}{Company}
+    \attribute[private]{name : String}
+    \operation[public]{hire(Programmer) : void}
+    \operation[public]{fire(Programmer) : void}
+  \end{class}
+
+  \begin{class}{Founder}
+    \position[right=4cm]{Company.east}
+    \attribute[private]{balance : int}
+    \operation[public]{doNothing() : void}
+  \end{class}
+  
+  \composition{Company}[founder][1]{Founder}
+  
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\subsection{\cmd{nested}}
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}
+
+  \begin{class}{Outer}
+  \end{class}
+
+  \begin{class}{Inner}
+    \position[right=2cm]{Outer.east}
+  \end{class}
+  
+  \nested{Outer}{Inner}
+  
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\subsection{\cmd{relation}}
+
+All of the above relations uses \cmd{relation} behind the scenes.
+
+\vspace{1em}{\centering\macro{relation}\oarg{options}\marg{from}\oarg{role}\oarg{multiplicity}\marg{to}\oarg{role}\oarg{multiplicity}\targ{via}}\vspace{1em}
+
+The \cmd{association} example demonstrated what all the arguments except \oarg{options} and \targ{via} do. First, \oarg{options} specifiy TikZ options to apply to the relation's ``arrow''. Secondly, \targ{via} allows for specification of a list of intermediary points, via which the ``arrow'' will pass. All of these arguments are available for all relation types, but they do not always make sense to use. The specification of this function is subject to change. It should for example be possible to provide TikZ options for each coordinate in \targ{via}.
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}[show background grid]
+
+  \begin{class}{From}
+    \position{0, -2}
+  \end{class}
+
+  \begin{class}{To}
+    \position{5, 2}
+  \end{class}
+  
+  \relation[red, out = 90, in = -90, ox-i>]{From}[Role1][Mult1]{To}[Role2][Mult2]<(2,2),(3,-2)>
+  
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\subsection{\cmd{package}}
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}
+
+  \begin{class}{Person}
+    \abstract
+    \attribute[private]{name : String}
+    \operation[public]{getName() : String}
+  \end{class}
+
+  \begin{class}{Parent}
+    \position{-2, -3}
+  \end{class}
+  
+  \begin{class}{Child}
+    \position{2, -3}
+  \end{class}
+  
+  \generalization{Parent}{Person}
+  \generalization{Child}{Person}
+  \package{Family}{(Person)(Parent)(Child)}
+  
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\section{Configuration}
+
+\subsection{Text}
+The \code{classdiagram} package defines a number of macros that are used to generate the recurring texts. These can be redefined to change the text and/or style.
+
+\begin{tabular}{ll}
+  \macro{textAbstractClass}     & Defines the stereotype used for abstract classes: \textAbstractClass \\
+  \macro{textInterface}         & Defines the stereotype used for interfaces: \textInterface \\
+\end{tabular}
+
+\begin{tabular}{lll}
+  \macro{styleClass}            & sffamily bfseries & {\styleClass Example} \\
+  \macro{styleAttribute}        & sffamily small    & {\styleAttribute Example} \\
+  \macro{styleOperation}        & sffamily small    & {\styleOperation Example} \\
+  \macro{stylePackage}          & sffamily bfseries & {\stylePackage Example} \\
+  \macro{styleAbstractClass}    & itshape           & {\styleAbstractClass Example} \\
+  \macro{styleAbstractAttribute}& itshape           & {\styleAbstractAttribute Example} \\
+  \macro{styleAbstractOperation}& itshape           & {\styleAbstractOperation Example} \\ \\
+\end{tabular}
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}
+
+  \renewcommand{\textAbstractClass}{<<abstract>> \\}
+  \renewcommand{\styleAbstractClass}{\sffamily \bfseries}
+  \renewcommand{\styleAbstractAttribute}{\tiny\ttfamily}
+  \renewcommand{\styleAbstractOperation}{\huge\sffamily}
+
+  \begin{class}{AbstractClass}
+    \position[right=0.5cm, anchor=south west]{Class.south east}
+    \abstract
+    \attribute*{abstractAttribute : type}
+    \operation*{abstractOperation() : type}
+  \end{class}
+
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\subsection{Styles}
+
+The \code{classdiagram} package defines a number of TikZ styles that are used to generate the class diagrams, and which can be overridden to change the look and feel.
+
+\begin{tabular}{l}
+cd relation \\
+cd relation text \\
+cd relation role start \\
+cd relation role end \\
+cd relation multiplicity start \\
+cd relation multiplicity end \\
+cd nested \\
+cd association \\
+cd unidirectional \\
+cd generalization \\
+cd realization \\
+cd aggregation \\
+cd composition \\
+cd package \\
+cd package box \\
+cd package label \\
+\end{tabular}
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}[
+  cd common/.append style={
+    sharp corners, bottom color=white, top color=white},
+  cd package label/.append style={
+    sharp corners, fill=white, anchor=north west, outer ysep=0.4pt},
+  cd package box/.append style=
+    {sharp corners, bottom color=white, top color=white}]
+    
+  \begin{class}{Person}
+    \abstract
+    \attribute[private]{name : String}
+    \operation[public]{getName() : String}
+  \end{class}
+
+  \begin{class}{Parent}
+    \position{-2, -3}
+  \end{class}
+  
+  \begin{class}{Child}
+    \position{2, -3}
+  \end{class}
+  
+  \generalization{Parent}{Person}
+  \generalization{Child}{Person}
+  \package{Family}{(Person)(Parent)(Child)}
+  
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\subsection{Arrows}
+
+The \code{classdiagram} package defines a number of TikZ arrowheads.
+
+\begin{tabular}{ll}
+\code{-a>} & \tikz \draw [-a>] (0,0) -- (1,0); \\
+\code{-i>} & \tikz \draw [-i>] (0,0) -- (1,0); \\
+\code{ox-} & \tikz \draw [ox-] (0,0) -- (1,0); \\
+\code{<>-} & \tikz \draw [<>-] (0,0) -- (1,0); \\
+\code{<*>-} & \tikz \draw [<*>-] (0,0) -- (1,0); \\
+\end{tabular}
+
+\section{Example}
+
+\begin{filecontents*}{temp}
+\begin{tikzpicture}[scale=0.7, every node/.style={transform shape}]
+    
+  \begin{class}{Person}
+    \abstract
+    \attribute[private]{name : String}
+    \operation[public]{getName() : String}
+  \end{class}
+  
+  \begin{class}{Company}
+    \position[right=4]{Person}
+    \attribute[private]{name : String}
+    \operation[public]{hire(Programmer) : void}
+    \operation[public]{fire(Programmer) : void}
+  \end{class}
+
+  \begin{class}{Founder}
+    \position[right=5]{Company}
+    \attribute[private]{balance : int}
+    \operation[public]{doNothing() : void}
+  \end{class}
+  
+  \begin{class}{Programmer}
+    \position[below=2]{Person}
+    \attribute[private]{linesWritten : type}
+    \operation[public]{program() : Program}
+    \operation[public]{getLinesWritten() : int}
+  \end{class} 
+  
+  \begin{interface}{Edible}
+    \position{9, -6}
+    \operation[public]{eat() : void}
+  \end{interface}
+  
+  \begin{class}{Ham}
+    \position[below=2]{Edible}
+  \end{class}
+  
+  \begin{class}{Cheese}
+    \position[right=1]{Ham}
+  \end{class}
+  
+  \begin{class}{Tomato}
+    \position[right=1]{Cheese}
+  \end{class}
+  
+  \begin{class}{Pizza}
+    \position[left=1]{Ham}
+    \attribute[private]{toppings : Set<Edible>}
+    \operation[public]{addTopping(Edible) : void}
+  \end{class}
+  
+  \begin{class}{PizzaBox}
+    \position[left=4.5]{Pizza}
+    \attribute[private]{position : Position}
+    \attribute[private]{size : Size}
+    \operation[public]{open() : Pizza}
+  \end{class}
+  
+  \aggregation[bend right=90]{Pizza}[has][0..1]{Ham}
+  \aggregation[bend right=90]{Pizza}[has][0..1]{Cheese}
+  \aggregation[bend right=90]{Pizza}[has][0..1]{Tomato}
+  \realization{Ham}{Edible}
+  \realization{Cheese}{Edible}
+  \realization{Tomato}{Edible}
+  \realization{Pizza}{Edible}
+  \association[unidirectional]{PizzaBox}[contents][1]{Pizza}
+  \association[unidirectional]{Programmer}[owns][0..*]{PizzaBox}
+  \aggregation[out=-90, in=0]{Company}[employees][0..*]{Programmer}
+  \composition{Company}[founder][1]{Founder}
+  \generalization{Programmer}{Person}
+  \package{Family}{(Person)(Programmer)}
+  \package[bottom color=green!50, top color=green!10]{Organization}{(Company)(Founder)}
+  \package[bottom color=red!50, top color=red!10]{Food}{(Pizza)(Ham)(Cheese)(Tomato)(Edible)}
+  
+\end{tikzpicture}
+\end{filecontents*}
+
+\begin{figure}[H]
+  \centering
+  \input{temp}
+\end{figure}
+
+\listing{temp}
+
+\end{document}
