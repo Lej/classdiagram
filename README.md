@@ -1,8 +1,8 @@
 classdiagram
 ============
 
-UML Class Diagram LaTeX Package
-See classdiagram.pdf for details
+UML Class Diagram LaTeX Package.
+See classdiagram.pdf for details.
 
 ![ScreenShot](https://raw.github.com/Lej/classdiagram/master/example.png)
 
